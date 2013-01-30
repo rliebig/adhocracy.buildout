@@ -66,24 +66,15 @@ done
 distro=''
 
 if which apt-get 2>/dev/null >/dev/null ; then
-	distro='debian'
-	PYTHON_CMD='python'
-	PIP_CMD='pip'
-	PKG_INSTALL_CMD='apt-get install -yqq'
-	VIRTUALENV_CMD='virtualenv'
+	distro='debian';PYTHON_CMD='python';PIP_CMD='pip';VIRTUAL_ENV_CMD='virtualenv';PKG_INSTALL_CMD='apt-get install -yqq'
 fi
 
 if which pacman 2>/dev/null >/dev/null ; then
-	distro='arch'
-	PYTHON_CMD='python2'
-	PIP_CMD='pip2'
-	PKG_INSTALL_CMD='pacman -S --needed --noconfirm'
-	VIRTUALENV_CMD='virtualenv2'
+	distro='arch';PYTHON_CMD='python2';PIP_CMD='pip2';VIRTUAL_ENV_CMD='virtualenv2';PKG_INSTALL_CMD='pacman -S --needed --noconfirm'
 fi
 
-if [ -z "$distro" ] ; then
-	echo "Your OS is currently not supported! Aborting"
-	exit 35
+if [ $distro == '' ] ; then
+	echo "Your OS is currently not supported! Aborting"; exit 1
 fi
 
 if [ "${PWD#*/adhocracy_buildout}" != "$PWD" ]; then
@@ -128,8 +119,8 @@ if ! $not_use_sudo_commands; then
     ;;
 	esac
 	# Install all Packages
-	echo $PKG_INSTALL $PKGS_TO_INSTALL
-	$SUDO_CMD $PKG_INSTALL_CMD $PKGS_TO_INSTALL
+	echo $PKGS_TO_INSTALL
+	$SUDO_CMD $PKG_INSTALL_CMD $PKGS_TO_INSTALL 2>/dev/null >/dev/null 1>/dev/null
 
 	if $setup_services; then
 		if [ "$adhoc_user" = "root" ]; then
@@ -140,27 +131,36 @@ if ! $not_use_sudo_commands; then
         if [ -r "adhocracy_buildout/adhocracy.buildout/${SERVICE_TEMPLATE}" ]; then
             stmpl=$(cat "adhocracy_buildout/adhocracy.buildout/${SERVICE_TEMPLATE}")
         else
-            stmpl=$(wget $SERVICE_TEMPLATE_URL -O- -nv)
+            stmpl=$(wget $SERVICE_TEMPLATE_URL -O- -nv >/dev/null 2>/dev/null)
         fi
+		echo "$stmpl" | \
+			sed -e "s#%%USER%%#$adhoc_user#" -e "s#%%DIR%%#$(readlink -f .)/adhocracy_buildout#" | \
+				$SUDO_CMD tee $INIT_FILE >/dev/null
 		case $distro in 
 			debian )
 			SERVICE_CMD='update-rc.d'
 			SERVICE_CMD_PREFIX='defaults'
 			INIT_FILE='/etc/init.d/adhocracy_services'
+			$SUDO_CMD chmod a+x $INITFILE
 			;;
 			arch )
 			SERVICE_CMD='systemctl enable'
 			INIT_FILE='/etc/rc.d/adhocracy_services'
+			cat >/etc/systemd/system/adhocracy.service <<EOF
+[Unit]
+Description=Adhocracy Daemon
+
+[Service]
+ExecStart=`pwd`paster_interactive.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
 			;;
 		esac
-		echo "$stmpl" | \
-			sed -e "s#%%USER%%#$adhoc_user#" -e "s#%%DIR%%#$(readlink -f .)/adhocracy_buildout#" | \
-				$SUDO_CMD tee "$INIT_FILE" >/dev/null
-		$SUDO_CMD chmod a+x "$INIT_FILE"
+		$SUDO_CMD chmod a+x $INIT_FILE
 		#TODO Write an service script for arch linux and install it
-		if [ "$distro" '!=' 'arch' ] ; then
-			$SUDO_CMD $SERVICE_CMD adhocracy_services $SERVICE_CMD_PREFIX
-		fi
+		$SUDO_CMD $SERVICE_CMD adhocracy_services $SERVICE_CMD_PREFIX >/dev/null
 	fi
 fi
 
@@ -193,7 +193,7 @@ check_port_free=adhocracy/check_port_free.py
 if [ '!' -e "$check_port_free" ]; then
     check_port_free_tmp=$(mktemp)
     check_port_free=$check_port_free_tmp
-	if ! wget -nv "$CHECK_PORT_FREE_URL" -O "$check_port_free_tmp"; then
+	if ! wget -q "$CHECK_PORT_FREE_URL" -O "$check_port_free_tmp"; then
         ex=$?
         echo "Download failed. Are you connected to the Internet?"
         exit $ex
@@ -205,7 +205,7 @@ if [ -n "$check_port_free_tmp" ]; then
 fi
 
 
-$VIRTUALENV_CMD --distribute --no-site-packages adhocracy_buildout
+$VIRTUAL_ENV_CMD --distribute --no-site-packages adhocracy_buildout
 ORIGINAL_PWD=$(pwd)
 cd adhocracy_buildout
 if [ -e adhocracy.buildout ]; then
