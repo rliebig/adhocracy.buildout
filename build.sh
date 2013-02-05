@@ -185,7 +185,7 @@ if ! $not_use_sudo_commands; then
 			arch )
 			SERVICE_CMD='systemctl enable'
 			INIT_FILE='/etc/rc.d/adhocracy_services'
-                        tee >/etc/systemd/system/adhocracy_services >> EOF
+                        tee /etc/systemd/system/adhocracy_services >> EOF
 [Unit]
 Description=Adhocracy Daemon
 
