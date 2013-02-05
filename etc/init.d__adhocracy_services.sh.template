@@ -33,7 +33,10 @@ else
 		echo $1
 	}
 	log_end_msg() {
-		echo $1
+		if $1 != 0; then
+			echo "Something went wrong."
+			exit 1
+		fi
 	}
 fi
 # Define LSB log_* functions.
