@@ -146,12 +146,13 @@ if ! $not_use_sudo_commands; then
 			arch )
 			SERVICE_CMD='systemctl enable'
 			INIT_FILE='/etc/rc.d/adhocracy_services'
-			cat >/etc/systemd/system/adhocracy.service <<EOF
+			tee >/etc/systemd/system/adhocracy_services.service <<EOF
 [Unit]
 Description=Adhocracy Daemon
 
 [Service]
-ExecStart=`pwd`paster_interactive.sh
+ExecStart=/etc/rc.d/adhocracy_services start
+ExecStop=/etc/rc.d/adhocracy_serverices stop
 
 [Install]
 WantedBy=multi-user.target
